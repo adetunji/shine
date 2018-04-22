@@ -1,11 +1,3 @@
-#---
-# Excerpted from "Rails, Angular, Postgres, and Bootstrap, Second Edition",
-# published by The Pragmatic Bookshelf.
-# Copyrights apply to this code. It may not be used to create training material,
-# courses, books, articles, and the like. Contact us if you are in doubt.
-# We make no guarantees that this code is fit for any purpose.
-# Visit http://www.pragmaticprogrammer.com/titles/dcbang2 for more book information.
-#---
 require 'rails_helper'
 
 feature "Customer Search" do
@@ -98,6 +90,15 @@ feature "Customer Search" do
       expect(list_group_items[3]).to have_content("I.T.")
       expect(list_group_items[3]).to have_content("Pat")
     end
-  end
+    click_on "View Details...", match: :first
 
+    customer = Customer.find_by!(email: "pat123@somewhere.net")
+    within "section.customer-details" do
+      expect(page).to have_content(customer.id)
+      expect(page).to have_content(customer.first_name)
+      expect(page).to have_content(customer.last_name)
+      expect(page).to have_content(customer.email)
+      expect(page).to have_content(customer.username)
+    end
+  end
 end

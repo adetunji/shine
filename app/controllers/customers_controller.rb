@@ -1,14 +1,11 @@
-#---
-# Excerpted from "Rails, Angular, Postgres, and Bootstrap, Second Edition",
-# published by The Pragmatic Bookshelf.
-# Copyrights apply to this code. It may not be used to create training material,
-# courses, books, articles, and the like. Contact us if you are in doubt.
-# We make no guarantees that this code is fit for any purpose.
-# Visit http://www.pragmaticprogrammer.com/titles/dcbang2 for more book information.
-#---
 class CustomersController < ApplicationController
 
   PAGE_SIZE = 10
+
+  def ng
+    @base_url = "/customers/ng"
+    render :index
+  end
 
   def index
 
@@ -28,10 +25,19 @@ class CustomersController < ApplicationController
       @customers = []
     end
     respond_to do |format|
-      format.html {}
+      format.html {
+        redirect_to customers_ng_path
+      }
       format.json {
         render json: { customers: @customers }
       }
+    end
+  end
+
+  def show
+    customer = Customer.find(params[:id])
+    respond_to do |format|
+      format.json{render json: {customer: customer}}
     end
   end
 end
