@@ -1,5 +1,6 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SET check_function_bodies = false;
@@ -20,32 +21,7 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 
 
---
--- Name: hstore; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS hstore WITH SCHEMA public;
-
-
---
--- Name: EXTENSION hstore; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION hstore IS 'data type for storing sets of (key, value) pairs';
-
-
 SET search_path = public, pg_catalog;
-
---
--- Name: customer_status; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE customer_status AS ENUM (
-    'signed_up',
-    'verified',
-    'inactive'
-);
-
 
 --
 -- Name: refresh_customer_details(); Type: FUNCTION; Schema: public; Owner: -
@@ -122,10 +98,7 @@ CREATE TABLE customers (
     email character varying NOT NULL,
     username character varying NOT NULL,
     created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    insights jsonb DEFAULT '{}'::json,
-    status customer_status DEFAULT 'signed_up'::customer_status NOT NULL,
-    bio text
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -297,8 +270,6 @@ CREATE TABLE users (
     last_sign_in_ip inet,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    roles character varying[] DEFAULT '{}'::character varying[],
-    settings hstore DEFAULT ''::hstore,
     CONSTRAINT email_must_be_company_email CHECK (((email)::text ~* '^[^@]+@example\.com$'::text))
 );
 
@@ -323,49 +294,49 @@ ALTER SEQUENCE users_id_seq OWNED BY users.id;
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: addresses id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY addresses ALTER COLUMN id SET DEFAULT nextval('addresses_id_seq'::regclass);
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: customers id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers ALTER COLUMN id SET DEFAULT nextval('customers_id_seq'::regclass);
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: customers_billing_addresses id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers_billing_addresses ALTER COLUMN id SET DEFAULT nextval('customers_billing_addresses_id_seq'::regclass);
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: customers_shipping_addresses id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers_shipping_addresses ALTER COLUMN id SET DEFAULT nextval('customers_shipping_addresses_id_seq'::regclass);
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: states id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY states ALTER COLUMN id SET DEFAULT nextval('states_id_seq'::regclass);
 
 
 --
--- Name: id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY users ALTER COLUMN id SET DEFAULT nextval('users_id_seq'::regclass);
 
 
 --
--- Name: addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: addresses addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY addresses
@@ -373,7 +344,7 @@ ALTER TABLE ONLY addresses
 
 
 --
--- Name: ar_internal_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ar_internal_metadata ar_internal_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY ar_internal_metadata
@@ -381,7 +352,7 @@ ALTER TABLE ONLY ar_internal_metadata
 
 
 --
--- Name: customers_billing_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: customers_billing_addresses customers_billing_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers_billing_addresses
@@ -389,7 +360,7 @@ ALTER TABLE ONLY customers_billing_addresses
 
 
 --
--- Name: customers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers
@@ -397,7 +368,7 @@ ALTER TABLE ONLY customers
 
 
 --
--- Name: customers_shipping_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: customers_shipping_addresses customers_shipping_addresses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY customers_shipping_addresses
@@ -405,7 +376,7 @@ ALTER TABLE ONLY customers_shipping_addresses
 
 
 --
--- Name: schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY schema_migrations
@@ -413,7 +384,7 @@ ALTER TABLE ONLY schema_migrations
 
 
 --
--- Name: states_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: states states_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY states
@@ -421,7 +392,7 @@ ALTER TABLE ONLY states
 
 
 --
--- Name: users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY users
@@ -433,20 +404,6 @@ ALTER TABLE ONLY users
 --
 
 CREATE UNIQUE INDEX customer_details_customer_id ON customer_details USING btree (customer_id);
-
-
---
--- Name: customers_bio_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX customers_bio_index ON customers USING gin (to_tsvector('english'::regconfig, bio));
-
-
---
--- Name: customers_insights_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX customers_insights_idx ON customers USING gin (insights);
 
 
 --
@@ -534,35 +491,28 @@ CREATE UNIQUE INDEX index_users_on_reset_password_token ON users USING btree (re
 
 
 --
--- Name: users_roles; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX users_roles ON users USING gin (roles);
-
-
---
--- Name: refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
+-- Name: customers refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER refresh_customer_details AFTER INSERT OR DELETE OR UPDATE ON customers FOR EACH STATEMENT EXECUTE PROCEDURE refresh_customer_details();
 
 
 --
--- Name: refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
+-- Name: customers_shipping_addresses refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER refresh_customer_details AFTER INSERT OR DELETE OR UPDATE ON customers_shipping_addresses FOR EACH STATEMENT EXECUTE PROCEDURE refresh_customer_details();
 
 
 --
--- Name: refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
+-- Name: customers_billing_addresses refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER refresh_customer_details AFTER INSERT OR DELETE OR UPDATE ON customers_billing_addresses FOR EACH STATEMENT EXECUTE PROCEDURE refresh_customer_details();
 
 
 --
--- Name: refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
+-- Name: addresses refresh_customer_details; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER refresh_customer_details AFTER INSERT OR DELETE OR UPDATE ON addresses FOR EACH STATEMENT EXECUTE PROCEDURE refresh_customer_details();
@@ -579,14 +529,8 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20160718143725'),
 ('20160718151402'),
 ('20160721030725'),
-('20161006115532'),
-('20161007115613'),
-('20161007122606'),
-('20161130130034'),
-('20161130131705'),
-('20161130132658'),
-('20161130134926'),
-('20161130141129'),
-('20161201130224');
+('20180424230931'),
+('20180425101002'),
+('20180425103509');
 
 
