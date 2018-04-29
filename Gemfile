@@ -16,6 +16,8 @@ gem 'jbuilder', '~> 2.5'
 gem 'devise'
 # START_HIGHLIGHT
 gem 'faker'
+
+gem 'angular_rails_csrf'
 # END_HIGHLIGHT
 # END:install-faker
 gem 'foreman'
